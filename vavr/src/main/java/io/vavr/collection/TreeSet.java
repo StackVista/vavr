@@ -528,6 +528,13 @@ public final class TreeSet<T> implements SortedSet<T>, Serializable {
         return contains(element) ? this : new TreeSet<>(tree.insert(element));
     }
 
+    /**
+     * Version of add that replaces an existing value if it exists.
+     */
+    public TreeSet<T> addOrReplace(T element) {
+        return new TreeSet<>(tree.insert(element));
+    }
+
     @Override
     public TreeSet<T> addAll(Iterable<? extends T> elements) {
         Objects.requireNonNull(elements, "elements is null");
