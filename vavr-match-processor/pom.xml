@@ -1,12 +1,12 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
+    <artifactId>vavr-match-processor</artifactId>
     <parent>
         <groupId>io.vavr</groupId>
         <artifactId>vavr-parent</artifactId>
         <version>0.10.0-sts1</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
-    <artifactId>vavr-match-processor</artifactId>
     <packaging>jar</packaging>
     <name>Vavr Match Annotation Processor</name>
     <description>Processor for structural pattern matching.</description>
