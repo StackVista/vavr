@@ -290,7 +290,7 @@ public class TreeSetTest extends AbstractSortedSetTest {
         final List<Integer> expected = List.of(3, 2, 1);
         assertThat(actual).isEqualTo(expected);
     }
-    
+
     // -- removeAll
     
     @Test

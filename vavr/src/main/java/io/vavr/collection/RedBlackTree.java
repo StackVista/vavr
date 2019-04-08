@@ -161,6 +161,24 @@ interface RedBlackTree<T> extends Iterable<T> {
      */
     Option<T> find(T value);
 
+    /**
+     * Finds the value stored in this tree, if exists, by applying the underlying comparator to the tree elements and
+     * the given element. If the value is not exactly matched, it will return the predecessor, if it exists
+     *
+     * @param value A value
+     * @return Some value, if this tree contains a value equal to the given value according to the underlying comparator. Otherwise the optional predecessor.
+     */
+    Option<T> findOrPredecessor(T value);
+
+    /**
+     * Finds the value stored in this tree, if exists, by applying the underlying comparator to the tree elements and
+     * the given element. If the value is not exactly matched, it will return the successor, if it exists
+     *
+     * @param value A value
+     * @return Some value, if this tree contains a value equal to the given value according to the underlying comparator. Otherwise the optional successor.
+     */
+    Option<T> findOrSuccessor(T value);
+
     default RedBlackTree<T> intersection(RedBlackTree<T> tree) {
         Objects.requireNonNull(tree, "tree is null");
         if (isEmpty()) {
@@ -394,6 +412,32 @@ interface RedBlackTreeModule {
                 return left.find(value);
             } else if (result > 0) {
                 return right.find(value);
+            } else {
+                return Option.some(this.value);
+            }
+        }
+
+        @Override
+        public Option<T> findOrPredecessor(T value) {
+            final int result = empty.comparator.compare(value, this.value);
+            if (result < 0) {
+                return left.findOrPredecessor(value);
+            } else if (result > 0) {
+                Option<T> ret = right.findOrPredecessor(value);
+                return ret.isEmpty() ? Option.of(this.value) : ret;
+            } else {
+                return Option.some(this.value);
+            }
+        }
+
+        @Override
+        public Option<T> findOrSuccessor(T value) {
+            final int result = empty.comparator.compare(value, this.value);
+            if (result < 0) {
+                Option<T> ret = left.findOrSuccessor(value);
+                return ret.isEmpty() ? Option.of(this.value) : ret;
+            } else if (result > 0) {
+                return right.findOrSuccessor(value);
             } else {
                 return Option.some(this.value);
             }
@@ -851,6 +895,16 @@ interface RedBlackTreeModule {
 
         @Override
         public Option<T> find(T value) {
+            return Option.none();
+        }
+
+        @Override
+        public Option<T> findOrPredecessor(T value) {
+            return Option.none();
+        }
+
+        @Override
+        public Option<T> findOrSuccessor(T value) {
             return Option.none();
         }
 
