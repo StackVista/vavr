@@ -531,8 +531,15 @@ public final class TreeSet<T> implements SortedSet<T>, Serializable {
     /**
      * Version of add that replaces an existing value if it exists.
      */
-    public TreeSet<T> addOrReplace(T element) {
-        return new TreeSet<>(tree.insert(element));
+    public Option<T> getOrPredecessor(T element) {
+        return tree.findOrPredecessor(element);
+    }
+
+    /**
+     * Version of add that replaces an existing value if it exists.
+     */
+    public Option<T> getOrSuccessor(T element) {
+        return tree.findOrSuccessor(element);
     }
 
     @Override
