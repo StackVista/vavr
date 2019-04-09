@@ -19,6 +19,7 @@
  */
 package io.vavr.collection;
 
+import io.vavr.control.Option;
 import org.junit.Test;
 
 import java.util.NoSuchElementException;
@@ -383,4 +384,39 @@ public class RedBlackTreeTest {
         assertThat(actual.toString()).isEqualTo("List(1, 2, 3, 4, 5, 6, 7)");
     }
 
+    // find()
+
+    @Test
+    public void shouldFindOrNotFind() {
+        final RedBlackTree<Integer> t1 = of(3, 5);
+        assertThat(t1.find(3)).isEqualTo(Option.of(3));
+        assertThat(t1.find(4)).isEqualTo(Option.none());
+    }
+
+    @Test
+    public void shouldNotFindInEmptyTree() {
+        final RedBlackTree<Integer> t1 = of();
+        assertThat(t1.find(4)).isEqualTo(Option.none());
+    }
+
+    @Test
+    public void shouldFindPredecessor() {
+        final RedBlackTree<Integer> t1 = of(3, 5, 6, 7);
+        assertThat(t1.findOrPredecessor(3)).isEqualTo(Option.of(3));
+        assertThat(t1.findOrPredecessor(4)).isEqualTo(Option.of(3));
+        assertThat(t1.findOrPredecessor(5)).isEqualTo(Option.of(5));
+        assertThat(t1.findOrPredecessor(10)).isEqualTo(Option.of(7));
+        assertThat(t1.findOrPredecessor(2)).isEqualTo(Option.none());
+    }
+
+    @Test
+    public void shouldFindSuccessor() {
+        final RedBlackTree<Integer> t1 = of(3, 5, 6, 7);
+        assertThat(t1.findOrSuccessor(2)).isEqualTo(Option.of(3));
+        assertThat(t1.findOrSuccessor(3)).isEqualTo(Option.of(3));
+        assertThat(t1.findOrSuccessor(4)).isEqualTo(Option.of(5));
+        assertThat(t1.findOrSuccessor(5)).isEqualTo(Option.of(5));
+        assertThat(t1.findOrSuccessor(7)).isEqualTo(Option.of(7));
+        assertThat(t1.findOrSuccessor(9)).isEqualTo(Option.none());
+    }
 }
