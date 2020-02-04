@@ -23,6 +23,7 @@ import io.vavr.control.Option;
 import org.junit.Test;
 
 import java.util.NoSuchElementException;
+import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -172,7 +173,7 @@ public class RedBlackTreeTest {
     public void shouldDelete_2_from_2_1_4_5_9_3_6_7() {
         final RedBlackTree<Integer> testee = of(2, 1, 4, 5, 9, 3, 6, 7);
         final RedBlackTree<Integer> actual = testee.delete(2);
-        assertThat(actual.toString()).isEqualTo("(B:4 (B:3 R:1) (R:6 B:5 (B:9 R:7)))");
+        assertThat(actual.toString()).isEqualTo("(B:5 (B:3 B:1 B:4) (B:7 B:6 B:9))");
         assertThat(actual.size()).isEqualTo(7);
     }
 
@@ -294,7 +295,7 @@ public class RedBlackTreeTest {
         final RedBlackTree<Integer> tree1 = of(8, 14, 0, 7, 9, 3);
         final RedBlackTree<Integer> tree2 = of(7, 9, 14, 6, 0, 5, 11, 10, 4, 12, 8, 13);
         final String actual = tree1.intersection(tree2).toString();
-        final String expected = "(B:8 (B:7 R:0) (B:14 R:9))";
+        final String expected = "(B:7 B:0 (R:9 B:8 B:14))";
         assertThat(actual).isEqualTo(expected);
     }
 
@@ -328,7 +329,7 @@ public class RedBlackTreeTest {
         final RedBlackTree<Integer> tree1 = of(1462193440, 0, 2147483647, -2147483648, 0, 637669539, -1612766076, -1, 1795938819, 1, 0, -420800448, -2147483648, 497885405, 0, 1084073832, 1, 1439964148, 1961646330);
         final RedBlackTree<Integer> tree2 = of(-1, 1, 2147483647, -1434983536, -2147483648, -1452486079, 1365799971, 231691980, -1780534767, -2147483648, 1448658704, 0, 1526591298);
         final String actual = tree1.intersection(tree2).toString();
-        final String expected = "(B:0 (B:-1 R:-2147483648) (B:2147483647 R:1))";
+        final String expected = "(B:-1 B:-2147483648 (R:1 B:0 B:2147483647))";
         assertThat(actual).isEqualTo(expected);
     }
 
@@ -418,5 +419,23 @@ public class RedBlackTreeTest {
         assertThat(t1.findOrSuccessor(5)).isEqualTo(Option.of(5));
         assertThat(t1.findOrSuccessor(7)).isEqualTo(Option.of(7));
         assertThat(t1.findOrSuccessor(9)).isEqualTo(Option.none());
+    }
+
+    // construction
+
+    @Test
+    public void canConstructAllTrees() {
+        for (int i = 1; i < 32; i++) {
+            Integer values[] = IntStream.range(0, i).boxed().toArray(Integer[]::new);
+            RedBlackTree<Integer> tree = of(values);
+            assertThat(tree.min().get()).isEqualTo(0);
+            assertThat(tree.max().get()).isEqualTo(i - 1);
+        }
+    }
+
+    @Test
+    public void deduplicates() {
+        RedBlackTree<Integer> tree = of(0, 0, 0);
+        assertThat(tree.size()).isEqualTo(1);
     }
 }
