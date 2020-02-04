@@ -487,7 +487,12 @@ interface RedBlackTree<T> extends Iterable<T> {
                                 final Node<T> node = (Node<T>) tree;
 
                                 final int result = node.empty.comparator.compare(from, node.value);
-                                if (result <= 0) {
+                                if (result == 0) {
+                                    // Do a push because this guy is in range.
+                                    stack[stackCount] = node;
+                                    stackCount++;
+                                    break;
+                                } else if (result < 0) {
                                     // Do a push because this guy is in range.
                                     stack[stackCount] = node;
                                     stackCount++;
