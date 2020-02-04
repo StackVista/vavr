@@ -381,6 +381,7 @@ interface RedBlackTree<T> extends Iterable<T> {
      * See also <a href="http://n00tc0d3r.blogspot.de/2013/08/implement-iterator-for-binarytree-i-in.html">Implement Iterator for BinaryTree I (In-order)</a>.
      */
     @Override
+    @SuppressWarnings({"unchecked", "rawtypes"})
     default Iterator<T> iterator() {
         if (isEmpty()) {
             return Iterator.empty();
@@ -388,36 +389,43 @@ interface RedBlackTree<T> extends Iterable<T> {
             final Node<T> that = (Node<T>) this;
             return new AbstractIterator<T>() {
 
-                List<Node<T>> stack = pushLeftChildren(List.empty(), that);
+                int stackCount = 0;
+                Node<T>[] stack = new Node[that.blackHeight * 2];
+
+                {
+                    pushLeftChildren(that);
+                }
 
                 @Override
                 public boolean hasNext() {
-                    return !stack.isEmpty();
+                    return stackCount != 0;
                 }
 
                 @Override
                 public T getNext() {
-                    final Tuple2<Node<T>, ? extends List<Node<T>>> result = stack.pop2();
-                    final Node<T> node = result._1;
-                    stack = node.right.isEmpty() ? result._2 : pushLeftChildren(result._2, (Node<T>) node.right);
-                    return result._1.value;
+                    // Do a pop
+                    final Node<T> node = stack[stackCount - 1];
+                    stackCount--;
+
+                    if (!node.right.isEmpty()) {
+                        pushLeftChildren((Node<T>) node.right);
+                    }
+                    return node.value;
                 }
 
-                private List<Node<T>> pushLeftChildren(List<Node<T>> initialStack, Node<T> that) {
-                    List<Node<T>> stack = initialStack;
+                private void pushLeftChildren(Node<T> that) {
                     RedBlackTree<T> tree = that;
                     while (!tree.isEmpty()) {
                         final Node<T> node = (Node<T>) tree;
-                        stack = stack.push(node);
+                        // Do a push
+                        stack[stackCount] = node;
+                        stackCount++;
                         tree = node.left;
                     }
-                    return stack;
                 }
             };
         }
     }
-
-    int getBlackHeight();
 
     /**
      * Returns a Lisp like representation of this tree.
@@ -556,11 +564,6 @@ interface RedBlackTreeModule {
         @Override
         public T value() {
             return value;
-        }
-
-        @Override
-        public int getBlackHeight() {
-            return blackHeight;
         }
 
         @Override
@@ -1026,11 +1029,6 @@ interface RedBlackTreeModule {
         @Override
         public T value() {
             throw new NoSuchElementException("value on empty");
-        }
-
-        @Override
-        public int getBlackHeight() {
-            return 0;
         }
 
         @Override
