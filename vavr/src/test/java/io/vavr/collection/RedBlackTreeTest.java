@@ -438,4 +438,17 @@ public class RedBlackTreeTest {
         RedBlackTree<Integer> tree = of(0, 0, 0);
         assertThat(tree.size()).isEqualTo(1);
     }
+
+    // iteratorFrom
+
+    @Test
+    public void producesExpectedValues() {
+        for (int i = 1; i < 16; i++) {
+            Integer values[] = IntStream.range(0, i).boxed().toArray(Integer[]::new);
+            RedBlackTree<Integer> tree = of(values);
+            for (int j = 0; j < i; j++) {
+                assertThat(Stream.ofAll(tree.iterableFrom(j)).toJavaArray()).isEqualTo(IntStream.range(j, i).boxed().toArray(Integer[]::new));
+            }
+        }
+    }
 }

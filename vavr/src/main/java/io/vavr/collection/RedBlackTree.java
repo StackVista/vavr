@@ -428,6 +428,94 @@ interface RedBlackTree<T> extends Iterable<T> {
     }
 
     /**
+     * Returns an Iterator that iterates elements in the order induced by the underlying Comparator, starting from the first element
+     * that bigger or equal to the request
+     * <p>
+     * Internally an in-order traversal of the RedBlackTree is performed.
+     * <p>
+     * Example:
+     *
+     * <pre><code>
+     *       4
+     *      / \
+     *     2   6
+     *    / \ / \
+     *   1  3 5  7
+     * </code></pre>
+     *
+     * From: 4
+     * Iteration order: 4, 5, 6, 7
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    default Iterable<T> iterableFrom(T from) {
+        final Node<T> that = (Node<T>) this;
+        return new Iterable<T>() {
+            @Override
+            public java.util.Iterator<T> iterator() {
+                if (isEmpty()) {
+                    return Iterator.empty();
+                } else {
+                    return new AbstractIterator<T>() {
+
+                        int stackCount = 0;
+                        Node<T>[] stack = new Node[that.blackHeight * 2];
+
+                        {
+                            pushStartNodes(that);
+                        }
+
+                        @Override
+                        public boolean hasNext() {
+                            return stackCount != 0;
+                        }
+
+                        @Override
+                        public T getNext() {
+                            // Do a pop
+                            final Node<T> node = stack[stackCount - 1];
+                            stackCount--;
+
+                            if (!node.right.isEmpty()) {
+                                pushLeftChildren((Node<T>) node.right);
+                            }
+                            return node.value;
+                        }
+
+                        private void pushStartNodes(Node<T> start) {
+                            RedBlackTree<T> tree = that;
+                            while (!tree.isEmpty()) {
+                                final Node<T> node = (Node<T>) tree;
+
+                                final int result = node.empty.comparator.compare(from, node.value);
+                                if (result <= 0) {
+                                    // Do a push because this guy is in range.
+                                    stack[stackCount] = node;
+                                    stackCount++;
+
+                                    tree = node.left;
+                                } else {
+                                    tree = node.right;
+                                }
+                            }
+                        }
+
+                        private void pushLeftChildren(Node<T> that) {
+                            RedBlackTree<T> tree = that;
+                            while (!tree.isEmpty()) {
+                                final Node<T> node = (Node<T>) tree;
+                                // Do a push
+                                stack[stackCount] = node;
+                                stackCount++;
+                                tree = node.left;
+                            }
+                        }
+                    };
+                }
+            }
+        };
+    }
+
+    /**
      * Returns a Lisp like representation of this tree.
      *
      * @return This Tree as Lisp like String.
