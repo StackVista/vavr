@@ -390,6 +390,7 @@ interface RedBlackTree<T> extends Iterable<T> {
             return new AbstractIterator<T>() {
 
                 int stackCount = 0;
+                // The maximum height of the tree is the blackHeight times 2 (there can be an equal amount of red nodes)
                 Node<T>[] stack = new Node[that.blackHeight * 2];
 
                 {
