@@ -448,13 +448,13 @@ interface RedBlackTree<T> extends Iterable<T> {
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
     default Iterable<T> iterableFrom(T from) {
-        final Node<T> that = (Node<T>) this;
         return new Iterable<T>() {
             @Override
             public java.util.Iterator<T> iterator() {
                 if (isEmpty()) {
                     return Iterator.empty();
                 } else {
+                    final Node<T> that = (Node<T>) RedBlackTree.this;
                     return new AbstractIterator<T>() {
 
                         int stackCount = 0;
