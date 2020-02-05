@@ -30,6 +30,9 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.function.*;
 import java.util.stream.Collector;
+import java.util.stream.Collectors;
+
+import static java.util.Arrays.copyOf;
 
 /**
  * SortedMap implementation, backed by a Red/Black Tree.
@@ -1121,6 +1124,10 @@ public final class TreeMap<K, V> implements SortedMap<K, V>, Serializable {
         return entries.iterator();
     }
 
+    public Iterable<Tuple2<K, V>> iterableFrom(K from) {
+        return entries.iterableFrom(new Tuple2<>(from, null));
+    }
+
     @Override
     public SortedSet<K> keySet() {
         return TreeSet.ofAll(comparator(), iterator().map(Tuple2::_1));
@@ -1461,11 +1468,7 @@ public final class TreeMap<K, V> implements SortedMap<K, V>, Serializable {
     private static <K, V> TreeMap<K, V> createTreeMap(EntryComparator<K, V> entryComparator,
             Iterable<? extends Tuple2<? extends K, ? extends V>> entries) {
         Objects.requireNonNull(entries, "entries is null");
-        RedBlackTree<Tuple2<K, V>> tree = RedBlackTree.empty(entryComparator);
-        for (Tuple2<K, V> entry : (Iterable<Tuple2<K, V>>) entries) {
-            tree = tree.insert(entry);
-        }
-        return new TreeMap<>(tree);
+        return new TreeMap<>(RedBlackTree.ofAll(entryComparator, (Iterable<Tuple2<K, V>>)entries));
     }
 
     private static <K, K2, V, V2> TreeMap<K2, V2> createTreeMap(EntryComparator<K2, V2> entryComparator,
@@ -1480,11 +1483,7 @@ public final class TreeMap<K, V> implements SortedMap<K, V>, Serializable {
     @SuppressWarnings("unchecked")
     private static <K, V> TreeMap<K, V> createFromMap(EntryComparator<K, V> entryComparator, java.util.Map<? extends K, ? extends V> map) {
         Objects.requireNonNull(map, "map is null");
-        RedBlackTree<Tuple2<K, V>> tree = RedBlackTree.empty(entryComparator);
-        for (java.util.Map.Entry<K, V> entry : ((java.util.Map<K, V>) map).entrySet()) {
-            tree = tree.insert(Tuple.of(entry.getKey(), entry.getValue()));
-        }
-        return new TreeMap<>(tree);
+        return new TreeMap<>(RedBlackTree.ofAll(entryComparator, ((java.util.Map<K, V>) map).entrySet().stream().map(entry -> Tuple.of(entry.getKey(), entry.getValue())).collect(Collectors.toList())));
     }
 
     @SuppressWarnings("unchecked")
@@ -1496,11 +1495,8 @@ public final class TreeMap<K, V> implements SortedMap<K, V>, Serializable {
     @SuppressWarnings("unchecked")
     private static <K, V> TreeMap<K, V> createFromTuples(EntryComparator<K, V> entryComparator, Tuple2<? extends K, ? extends V>... entries) {
         Objects.requireNonNull(entries, "entries is null");
-        RedBlackTree<Tuple2<K, V>> tree = RedBlackTree.empty(entryComparator);
-        for (Tuple2<? extends K, ? extends V> entry : entries) {
-            tree = tree.insert((Tuple2<K, V>) entry);
-        }
-        return new TreeMap<>(tree);
+        Tuple2<K, V> valueArray[] = (Tuple2<K, V>[])copyOf(entries, entries.length);
+        return new TreeMap<>(RedBlackTree.<Tuple2<K, V>>ofMutableArray(entryComparator, valueArray));
     }
 
     @SafeVarargs

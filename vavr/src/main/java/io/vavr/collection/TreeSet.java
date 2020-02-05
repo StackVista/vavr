@@ -770,6 +770,10 @@ public final class TreeSet<T> implements SortedSet<T>, Serializable {
         return tree.iterator();
     }
 
+    public Iterable<T> iterableFrom(T from) {
+        return tree.iterableFrom(from);
+    }
+
     @Override
     public T last() {
         if (isEmpty()) {
