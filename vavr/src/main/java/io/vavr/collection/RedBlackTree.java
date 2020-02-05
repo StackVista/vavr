@@ -27,12 +27,15 @@ import io.vavr.collection.RedBlackTreeModule.Node;
 import io.vavr.control.Option;
 
 import java.io.Serializable;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.stream.StreamSupport;
 
 import static io.vavr.collection.RedBlackTree.Color.BLACK;
 import static io.vavr.collection.RedBlackTree.Color.RED;
+import static java.util.Arrays.copyOf;
 
 /**
  * Purely functional Red/Black Tree, inspired by <a href="https://github.com/kazu-yamamoto/llrbtree/blob/master/Data/Set/RBTree.hs">Kazu Yamamoto's Haskell implementation</a>.
@@ -60,14 +63,12 @@ interface RedBlackTree<T> extends Iterable<T> {
     }
 
     @SafeVarargs
+    @SuppressWarnings({"unchecked", "varargs"})
     static <T> RedBlackTree<T> of(Comparator<? super T> comparator, T... values) {
         Objects.requireNonNull(comparator, "comparator is null");
         Objects.requireNonNull(values, "values is null");
-        RedBlackTree<T> tree = empty(comparator);
-        for (T value : values) {
-            tree = tree.insert(value);
-        }
-        return tree;
+        T valueArray[] = copyOf(values, values.length);
+        return ofMutableArray(comparator, valueArray);
     }
 
     @SuppressWarnings("unchecked")
@@ -78,13 +79,100 @@ interface RedBlackTree<T> extends Iterable<T> {
         if (values instanceof RedBlackTree && ((RedBlackTree<T>) values).comparator() == comparator) {
             return (RedBlackTree<T>) values;
         } else {
-            RedBlackTree<T> tree = empty(comparator);
-            for (T value : values) {
-                tree = tree.insert(value);
-            }
-            return tree;
+            T valueArray[] = (T[])StreamSupport.stream(values.spliterator(), false).toArray();
+            return ofMutableArray(comparator, valueArray);
         }
     }
+
+    static <T> RedBlackTree<T> ofMutableArray(Comparator<? super T> comparator, T values[]) {
+        // Tackle the base case
+        if (values.length == 0) {
+            return empty(comparator);
+        }
+
+        // Maybe the array is already sorted? If not, make sure we sort it
+        for (int i = 1; i < values.length; i++) {
+            if (comparator.compare(values[i - 1], values[i]) > 0) {
+                Arrays.sort(values, comparator);
+                break;
+            }
+        }
+
+
+        // Deduplicate the sorted data
+        T lastItem = values[0];
+        int lastIndex = 0;
+
+        for (int i = 1; i < values.length; i++) {
+            if (comparator.compare(lastItem, values[i]) != 0) {
+                lastIndex++;
+            }
+
+            values[lastIndex] = values[i];
+            lastItem = values[i];
+        }
+
+        return ofSortedAndDeduplicatedArray(comparator, values, lastIndex + 1);
+    }
+
+    static <T> RedBlackTree<T> ofSortedAndDeduplicatedArray(Comparator<? super T> comparator, T values[], int length) {
+        final Empty<T> empty = new Empty<>(comparator);
+
+        if (length == 0) {
+            return empty;
+        }
+
+        int height = length == 1 ? 1 : log2IntRoundedDown(length);
+
+        return ofSortedAndDeduplicatedArray(empty, values, height, 0, length);
+    }
+
+    static int log2IntRoundedDown(int count) {
+        return (Integer.SIZE - Integer.numberOfLeadingZeros(count)) - 1;
+    }
+
+    // Based on https://www.cs.princeton.edu/~rs/talks/LLRB/RedBlack.pdf
+    // We construct 2-nodes all the way down, inserting 3 and 4-nodes at the lowest level to fill in the remaining items but keep the blackHeight invariant
+    static <T> RedBlackTree<T> ofSortedAndDeduplicatedArray(Empty<T> empty, T values[], int remainingHeight, int start, int size) {
+        if (size == 0) {
+            if (remainingHeight != 0) {
+                throw new IllegalStateException("Expected remainigHeight = 0 for leaf");
+            }
+            // Make a leaf.
+            return empty;
+        } else if (size == 1) {
+            if (remainingHeight != 1) {
+                throw new IllegalStateException("Expected remainigHeight = 1 for bottom 2-node, got " + remainingHeight);
+            }
+            // Make a 2-node
+            // Invariant: remainingHeight should be 1
+            return new Node<T>(BLACK, remainingHeight, empty, values[start], empty, empty);
+        } else if (size == 2 && remainingHeight == 1) {
+            // Make a 3-node, to fill the remainder
+            return new Node<T>(BLACK, remainingHeight, new Node<T>(RED, remainingHeight, empty, values[start], empty, empty), values[start + 1], empty, empty);
+        } else if (size == 3 && remainingHeight == 1) {
+            // Make a 4-node, to fill the remainder
+            return new Node<T>(BLACK, remainingHeight,
+                    new Node<T>(RED, remainingHeight, empty, values[start], empty, empty),
+                    values[start + 1],
+                    new Node<T>(RED, remainingHeight, empty, values[start + 2], empty, empty),
+                    empty);
+        } else {
+            // Make a 2-node and recurse
+            int childCount = size - 1;
+            int perChild = childCount / 2;
+            int remainder = childCount % 2;// Make a 4-node and recurse
+            int child1Count = perChild + (remainder >= 1 ? 1 : 0);
+            int child2Count = perChild;
+
+            RedBlackTree<T> c1 = ofSortedAndDeduplicatedArray(empty, values, remainingHeight - 1, start, child1Count);
+            int split = start + child1Count;
+            RedBlackTree<T> c2 = ofSortedAndDeduplicatedArray(empty, values, remainingHeight - 1, split + 1, child2Count);
+
+            return new Node<T>(BLACK, remainingHeight, c1, values[split], c2, empty);
+        }
+    }
+
 
     /**
      * Inserts a new value into this tree.
@@ -293,6 +381,7 @@ interface RedBlackTree<T> extends Iterable<T> {
      * See also <a href="http://n00tc0d3r.blogspot.de/2013/08/implement-iterator-for-binarytree-i-in.html">Implement Iterator for BinaryTree I (In-order)</a>.
      */
     @Override
+    @SuppressWarnings({"unchecked", "rawtypes"})
     default Iterator<T> iterator() {
         if (isEmpty()) {
             return Iterator.empty();
@@ -300,30 +389,40 @@ interface RedBlackTree<T> extends Iterable<T> {
             final Node<T> that = (Node<T>) this;
             return new AbstractIterator<T>() {
 
-                List<Node<T>> stack = pushLeftChildren(List.empty(), that);
+                int stackCount = 0;
+                // The maximum height of the tree is the blackHeight times 2 (there can be an equal amount of red nodes)
+                Node<T>[] stack = new Node[that.blackHeight * 2];
+
+                {
+                    pushLeftChildren(that);
+                }
 
                 @Override
                 public boolean hasNext() {
-                    return !stack.isEmpty();
+                    return stackCount != 0;
                 }
 
                 @Override
                 public T getNext() {
-                    final Tuple2<Node<T>, ? extends List<Node<T>>> result = stack.pop2();
-                    final Node<T> node = result._1;
-                    stack = node.right.isEmpty() ? result._2 : pushLeftChildren(result._2, (Node<T>) node.right);
-                    return result._1.value;
+                    // Do a pop
+                    final Node<T> node = stack[stackCount - 1];
+                    stackCount--;
+
+                    if (!node.right.isEmpty()) {
+                        pushLeftChildren((Node<T>) node.right);
+                    }
+                    return node.value;
                 }
 
-                private List<Node<T>> pushLeftChildren(List<Node<T>> initialStack, Node<T> that) {
-                    List<Node<T>> stack = initialStack;
+                private void pushLeftChildren(Node<T> that) {
                     RedBlackTree<T> tree = that;
                     while (!tree.isEmpty()) {
                         final Node<T> node = (Node<T>) tree;
-                        stack = stack.push(node);
+                        // Do a push
+                        stack[stackCount] = node;
+                        stackCount++;
                         tree = node.left;
                     }
-                    return stack;
                 }
             };
         }
