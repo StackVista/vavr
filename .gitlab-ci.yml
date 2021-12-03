@@ -10,7 +10,7 @@ build-and-publish:
   rules:
     - when: manual
   tags:
-    - sts-k8s-cpu-xl-runner
+    - sts-k8s-m-runner
   before_script:
     - mkdir -p "$MAVEN_CONFIG"
     - |
