@@ -1,0 +1,32 @@
+stages:
+  - build
+
+build-and-publish:
+  image: maven:3.6.3-openjdk-8-slim
+  stage: build
+  variables:
+    USER_HOME: "/var/maven"
+    MAVEN_CONFIG: "${USER_HOME}/.m2"
+  rules:
+    - when: manual
+  tags:
+    - sts-k8s-cpu-xl-runner
+  before_script:
+    - mkdir -p "$MAVEN_CONFIG"
+    - |
+      cat > "$MAVEN_CONFIG/settings.xml" <<EOF
+      <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
+        http://maven.apache.org/xsd/settings-1.0.0.xsd">
+
+        <servers>
+          <server>
+            <id>stackstate-artifactory</id>
+            <username>${artifactory_user}</username>
+            <password>${artifactory_password}</password>
+          </server>
+        </servers>
+      </settings>
+      
+  script: mvn -Dartifactory_url="${artifactory_url}/libs" -Duser.home="${USER_HOME}" deploy
