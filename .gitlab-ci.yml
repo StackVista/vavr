@@ -28,4 +28,5 @@ build-and-publish:
           </server>
         </servers>
       </settings>
+      EOF
   script: mvn -Dartifactory_url="${artifactory_url}/libs" -Duser.home="${USER_HOME}" deploy
