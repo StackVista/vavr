@@ -323,11 +323,11 @@ We use these goals frequently to keep the dependencies and plugins up-to-date:
         </pluginManagement>
     </build>
     <distributionManagement>
-      <repository>
-        <id>stackstate-artifactory</id>
-        <name>StackState Artifactory</name>
-        <url>${artifactory_url}</url>
-      </repository>
+        <repository>
+        <id>gitlab-packages-registry</id>
+        <name>GitLab Packages Registry</name>
+        <url>${gitlab_registry_url}</url>
+        </repository>
     </distributionManagement>
     <profiles>
         <!-- A profile for code coverage analysis in ci environments -->

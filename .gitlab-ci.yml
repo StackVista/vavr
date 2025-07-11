@@ -2,7 +2,7 @@ stages:
   - build
 
 build-and-publish:
-  image: maven:3.6.3-openjdk-8-slim
+  image: ${REGISTRY_DOCKER_URL}/maven:3.6.3-openjdk-8-slim
   stage: build
   variables:
     USER_HOME: "/var/maven"
@@ -22,11 +22,11 @@ build-and-publish:
 
         <servers>
           <server>
-            <id>stackstate-artifactory</id>
-            <username>${artifactory_user}</username>
-            <password>${artifactory_password}</password>
+            <id>gitlab-packages-registry</id>
+            <username>${GITLAB_PACKAGE_REGISTRY_USER}</username>
+            <password>${GITLAB_PACKAGE_REGISTRY_TOKEN}</password>
           </server>
         </servers>
       </settings>
       EOF
-  script: mvn -Dartifactory_url="${artifactory_url}/libs" -Duser.home="${USER_HOME}" deploy
+  script: mvn -Dgitlab_registry_url="${GITLAB_PACKAGE_REGISTRY_MAVEN_URL}" -Duser.home="${USER_HOME}" deploy
