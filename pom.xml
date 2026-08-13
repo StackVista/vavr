@@ -87,40 +87,6 @@ We use these goals frequently to keep the dependencies and plugins up-to-date:
         <package.registry.maven.url>https://please-set-PACKAGE-REGISTRY-MAVEN-URL-to-publish</package.registry.maven.url>
         <package.registry.maven.snapshot.url>https://please-set-PACKAGE-REGISTRY-MAVEN-SNAPSHOT-URL-to-publish</package.registry.maven.snapshot.url>
     </properties>
-    <repositories>
-        <repository>
-            <id>central</id>
-            <url>https://packages.tooling.stackstate.io/maven/releases/</url>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-        </repository>
-        <repository>
-            <id>packages-snapshot-proxy</id>
-            <url>https://packages.tooling.stackstate.io/maven/snapshots/</url>
-            <releases>
-                <enabled>false</enabled>
-            </releases>
-            <snapshots>
-                <enabled>true</enabled>
-            </snapshots>
-        </repository>
-    </repositories>
-    <pluginRepositories>
-        <pluginRepository>
-            <id>central</id>
-            <url>https://packages.tooling.stackstate.io/maven/releases/</url>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-        </pluginRepository>
-    </pluginRepositories>
     <dependencyManagement>
         <dependencies>
             <dependency>

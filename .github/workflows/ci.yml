@@ -41,18 +41,11 @@ jobs:
           java-version: '8'
           cache: maven
 
-      - name: Authenticate to the package registry proxy
-        uses: StackVista/package-registry-actions/.github/actions/package-registry-proxy-auth@9af41cd4af9374a664bb1afd836f7b903b11bfea # STAC-25549-package-registry-proxy-auth, re-pin to a release tag after that PR merges
-        with:
-          username: ${{ vars.PACKAGE_REGISTRY_PROXY_USER }}
-          token: ${{ secrets.PACKAGE_REGISTRY_PROXY_TOKEN }}
-          maven-settings: 'true'
-
       - name: Build and test
         run: |
           # vavr-benchmark is excluded: its only source for io.usethesource:capsule is a plain-HTTP
           # repo that Maven blocks by default, and the artifact is on no HTTPS registry.
-          mvn --batch-mode -s "${MAVEN_SETTINGS_FILE}" -pl '!vavr-benchmark' clean test
+          mvn --batch-mode -pl '!vavr-benchmark' clean test
 
   zizmor:
     name: zizmor
@@ -108,13 +101,6 @@ jobs:
           domain-owner: ${{ vars.CODEARTIFACT_DOMAIN_OWNER }}
           region: ${{ vars.CODEARTIFACT_REGION }}
           repository: packages
-          maven-settings: 'true'
-
-      - name: Authenticate to the package registry proxy
-        uses: StackVista/package-registry-actions/.github/actions/package-registry-proxy-auth@9af41cd4af9374a664bb1afd836f7b903b11bfea # STAC-25549-package-registry-proxy-auth, re-pin to a release tag after that PR merges
-        with:
-          username: ${{ vars.PACKAGE_REGISTRY_PROXY_USER }}
-          token: ${{ secrets.PACKAGE_REGISTRY_PROXY_TOKEN }}
           maven-settings: 'true'
 
       - name: Publish release to CodeArtifact
