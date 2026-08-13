@@ -71,7 +71,10 @@ jobs:
           SETTINGS_EOF
 
       - name: Build and test
-        run: mvn --batch-mode -s "${RUNNER_TEMP}/settings.xml" clean test
+        run: |
+          # vavr-benchmark is excluded: its only source for io.usethesource:capsule is a plain-HTTP
+          # repo that Maven blocks by default, and the artifact is on no HTTPS registry.
+          mvn --batch-mode -s "${RUNNER_TEMP}/settings.xml" -pl '!vavr-benchmark' clean test
 
   zizmor:
     name: zizmor
@@ -161,7 +164,11 @@ jobs:
       - name: Publish release to CodeArtifact
         env:
           PACKAGE_REGISTRY_MAVEN_URL: ${{ vars.CODEARTIFACT_MAVEN_RELEASE_URL }}
-        run: mvn --batch-mode -s "${RUNNER_TEMP}/settings.xml" -Dpackage.registry.maven.url="${PACKAGE_REGISTRY_MAVEN_URL}" deploy
+        run: |
+          # vavr-benchmark excluded for the same reason as in build-and-test; it is a JMH harness,
+          # not a consumed artifact.
+          mvn --batch-mode -s "${RUNNER_TEMP}/settings.xml" -pl '!vavr-benchmark' \
+            -Dpackage.registry.maven.url="${PACKAGE_REGISTRY_MAVEN_URL}" deploy
 
   ci-success:
     name: ci-success
