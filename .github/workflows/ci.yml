@@ -1,0 +1,182 @@
+name: CI
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+  push:
+    branches:
+      - stackstate-master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash --noprofile --norc -euo pipefail {0}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Java
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        with:
+          distribution: temurin
+          java-version: '8'
+          cache: maven
+
+      - name: Authenticate to the package registry proxy
+        uses: StackVista/package-registry-actions/.github/actions/package-registry-proxy-auth@d41829a184b01ef45f13e8dfa13cfb64ed548b75 # STAC-25549-package-registry-proxy-auth, re-pin to a release tag after that PR merges
+        with:
+          username: ${{ vars.PACKAGE_REGISTRY_PROXY_USER }}
+          token: ${{ secrets.PACKAGE_REGISTRY_PROXY_TOKEN }}
+
+      - name: Write Maven settings.xml
+        run: |
+          proxy_user="$(grep '^user=' "${PACKAGE_REGISTRY_PROXY_CREDENTIALS_FILE}" | cut -d= -f2-)"
+          proxy_password="$(grep '^password=' "${PACKAGE_REGISTRY_PROXY_CREDENTIALS_FILE}" | cut -d= -f2-)"
+          settings_file="${RUNNER_TEMP}/settings.xml"
+          install -m 600 /dev/null "${settings_file}"
+          cat > "${settings_file}" <<SETTINGS_EOF
+          <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0">
+            <servers>
+              <server>
+                <id>central</id>
+                <username>${proxy_user}</username>
+                <password>${proxy_password}</password>
+              </server>
+              <server>
+                <id>packages-snapshot-proxy</id>
+                <username>${proxy_user}</username>
+                <password>${proxy_password}</password>
+              </server>
+            </servers>
+          </settings>
+          SETTINGS_EOF
+
+      - name: Build and test
+        run: mvn --batch-mode -s "${RUNNER_TEMP}/settings.xml" clean test
+
+  zizmor:
+    name: zizmor
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Run zizmor
+        uses: zizmorcore/zizmor-action@b572f7b1a1c2d41efaab43d504f68d215c3cd727 # v0.5.4
+        with:
+          advanced-security: false
+
+  publish:
+    name: Publish release
+    needs:
+      - build-and-test
+      - zizmor
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/stackstate-master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Java
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        with:
+          distribution: temurin
+          java-version: '8'
+          cache: maven
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          role-to-assume: ${{ vars.CODEARTIFACT_MAVEN_RELEASE_ROLE_ARN }}
+          aws-region: ${{ vars.CODEARTIFACT_REGION }}
+
+      - name: Authenticate to CodeArtifact
+        uses: StackVista/package-registry-actions/.github/actions/codeartifact-auth@2a4f7ede3d9e9cec1a50c2a139473295889dfd47 # v1.0.0
+        with:
+          domain: ${{ vars.CODEARTIFACT_DOMAIN }}
+          domain-owner: ${{ vars.CODEARTIFACT_DOMAIN_OWNER }}
+          region: ${{ vars.CODEARTIFACT_REGION }}
+          repository: packages
+
+      - name: Authenticate to the package registry proxy
+        uses: StackVista/package-registry-actions/.github/actions/package-registry-proxy-auth@d41829a184b01ef45f13e8dfa13cfb64ed548b75 # STAC-25549-package-registry-proxy-auth, re-pin to a release tag after that PR merges
+        with:
+          username: ${{ vars.PACKAGE_REGISTRY_PROXY_USER }}
+          token: ${{ secrets.PACKAGE_REGISTRY_PROXY_TOKEN }}
+
+      - name: Write Maven settings.xml
+        run: |
+          proxy_user="$(grep '^user=' "${PACKAGE_REGISTRY_PROXY_CREDENTIALS_FILE}" | cut -d= -f2-)"
+          proxy_password="$(grep '^password=' "${PACKAGE_REGISTRY_PROXY_CREDENTIALS_FILE}" | cut -d= -f2-)"
+          codeartifact_password="$(grep '^password=' "${CODEARTIFACT_CREDENTIALS_DIR}/codeartifact-packages.credentials" | cut -d= -f2-)"
+          settings_file="${RUNNER_TEMP}/settings.xml"
+          install -m 600 /dev/null "${settings_file}"
+          cat > "${settings_file}" <<SETTINGS_EOF
+          <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0">
+            <servers>
+              <server>
+                <id>packages</id>
+                <username>aws</username>
+                <password>${codeartifact_password}</password>
+              </server>
+              <server>
+                <id>central</id>
+                <username>${proxy_user}</username>
+                <password>${proxy_password}</password>
+              </server>
+            </servers>
+          </settings>
+          SETTINGS_EOF
+
+      - name: Publish release to CodeArtifact
+        env:
+          PACKAGE_REGISTRY_MAVEN_URL: ${{ vars.CODEARTIFACT_MAVEN_RELEASE_URL }}
+        run: mvn --batch-mode -s "${RUNNER_TEMP}/settings.xml" -Dpackage.registry.maven.url="${PACKAGE_REGISTRY_MAVEN_URL}" deploy
+
+  ci-success:
+    name: ci-success
+    if: ${{ always() }}
+    needs:
+      - build-and-test
+      - zizmor
+      - publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Evaluate workflow results
+        env:
+          NEEDS_RESULT: ${{ join(needs.*.result, ',') }}
+        run: |
+          echo "$NEEDS_RESULT"
+          if [[ "$NEEDS_RESULT" =~ failure|cancelled ]]; then
+            exit 1
+          fi
