@@ -42,39 +42,17 @@ jobs:
           cache: maven
 
       - name: Authenticate to the package registry proxy
-        uses: StackVista/package-registry-actions/.github/actions/package-registry-proxy-auth@d41829a184b01ef45f13e8dfa13cfb64ed548b75 # STAC-25549-package-registry-proxy-auth, re-pin to a release tag after that PR merges
+        uses: StackVista/package-registry-actions/.github/actions/package-registry-proxy-auth@9af41cd4af9374a664bb1afd836f7b903b11bfea # STAC-25549-package-registry-proxy-auth, re-pin to a release tag after that PR merges
         with:
           username: ${{ vars.PACKAGE_REGISTRY_PROXY_USER }}
           token: ${{ secrets.PACKAGE_REGISTRY_PROXY_TOKEN }}
-
-      - name: Write Maven settings.xml
-        run: |
-          proxy_user="$(grep '^user=' "${PACKAGE_REGISTRY_PROXY_CREDENTIALS_FILE}" | cut -d= -f2-)"
-          proxy_password="$(grep '^password=' "${PACKAGE_REGISTRY_PROXY_CREDENTIALS_FILE}" | cut -d= -f2-)"
-          settings_file="${RUNNER_TEMP}/settings.xml"
-          install -m 600 /dev/null "${settings_file}"
-          cat > "${settings_file}" <<SETTINGS_EOF
-          <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0">
-            <servers>
-              <server>
-                <id>central</id>
-                <username>${proxy_user}</username>
-                <password>${proxy_password}</password>
-              </server>
-              <server>
-                <id>packages-snapshot-proxy</id>
-                <username>${proxy_user}</username>
-                <password>${proxy_password}</password>
-              </server>
-            </servers>
-          </settings>
-          SETTINGS_EOF
+          maven-settings: 'true'
 
       - name: Build and test
         run: |
           # vavr-benchmark is excluded: its only source for io.usethesource:capsule is a plain-HTTP
           # repo that Maven blocks by default, and the artifact is on no HTTPS registry.
-          mvn --batch-mode -s "${RUNNER_TEMP}/settings.xml" -pl '!vavr-benchmark' clean test
+          mvn --batch-mode -s "${MAVEN_SETTINGS_FILE}" -pl '!vavr-benchmark' clean test
 
   zizmor:
     name: zizmor
@@ -124,42 +102,20 @@ jobs:
           aws-region: ${{ vars.CODEARTIFACT_REGION }}
 
       - name: Authenticate to CodeArtifact
-        uses: StackVista/package-registry-actions/.github/actions/codeartifact-auth@2a4f7ede3d9e9cec1a50c2a139473295889dfd47 # v1.0.0
+        uses: StackVista/package-registry-actions/.github/actions/codeartifact-auth@9af41cd4af9374a664bb1afd836f7b903b11bfea # STAC-25549-package-registry-proxy-auth, re-pin to a release tag after that PR merges
         with:
           domain: ${{ vars.CODEARTIFACT_DOMAIN }}
           domain-owner: ${{ vars.CODEARTIFACT_DOMAIN_OWNER }}
           region: ${{ vars.CODEARTIFACT_REGION }}
           repository: packages
+          maven-settings: 'true'
 
       - name: Authenticate to the package registry proxy
-        uses: StackVista/package-registry-actions/.github/actions/package-registry-proxy-auth@d41829a184b01ef45f13e8dfa13cfb64ed548b75 # STAC-25549-package-registry-proxy-auth, re-pin to a release tag after that PR merges
+        uses: StackVista/package-registry-actions/.github/actions/package-registry-proxy-auth@9af41cd4af9374a664bb1afd836f7b903b11bfea # STAC-25549-package-registry-proxy-auth, re-pin to a release tag after that PR merges
         with:
           username: ${{ vars.PACKAGE_REGISTRY_PROXY_USER }}
           token: ${{ secrets.PACKAGE_REGISTRY_PROXY_TOKEN }}
-
-      - name: Write Maven settings.xml
-        run: |
-          proxy_user="$(grep '^user=' "${PACKAGE_REGISTRY_PROXY_CREDENTIALS_FILE}" | cut -d= -f2-)"
-          proxy_password="$(grep '^password=' "${PACKAGE_REGISTRY_PROXY_CREDENTIALS_FILE}" | cut -d= -f2-)"
-          codeartifact_password="$(grep '^password=' "${CODEARTIFACT_CREDENTIALS_DIR}/codeartifact-packages.credentials" | cut -d= -f2-)"
-          settings_file="${RUNNER_TEMP}/settings.xml"
-          install -m 600 /dev/null "${settings_file}"
-          cat > "${settings_file}" <<SETTINGS_EOF
-          <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0">
-            <servers>
-              <server>
-                <id>packages</id>
-                <username>aws</username>
-                <password>${codeartifact_password}</password>
-              </server>
-              <server>
-                <id>central</id>
-                <username>${proxy_user}</username>
-                <password>${proxy_password}</password>
-              </server>
-            </servers>
-          </settings>
-          SETTINGS_EOF
+          maven-settings: 'true'
 
       - name: Publish release to CodeArtifact
         env:
@@ -167,7 +123,7 @@ jobs:
         run: |
           # vavr-benchmark excluded for the same reason as in build-and-test; it is a JMH harness,
           # not a consumed artifact.
-          mvn --batch-mode -s "${RUNNER_TEMP}/settings.xml" -pl '!vavr-benchmark' \
+          mvn --batch-mode -s "${MAVEN_SETTINGS_FILE}" -pl '!vavr-benchmark' \
             -Dpackage.registry.maven.url="${PACKAGE_REGISTRY_MAVEN_URL}" deploy
 
   ci-success:
