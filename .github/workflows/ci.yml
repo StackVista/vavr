@@ -95,7 +95,7 @@ jobs:
           aws-region: ${{ vars.CODEARTIFACT_REGION }}
 
       - name: Authenticate to CodeArtifact
-        uses: StackVista/package-registry-actions/.github/actions/codeartifact-auth@9af41cd4af9374a664bb1afd836f7b903b11bfea # STAC-25549-package-registry-proxy-auth, re-pin to a release tag after that PR merges
+        uses: StackVista/package-registry-actions/.github/actions/codeartifact-auth@f0b17a56f77589c578ac916c04876432aec4aa91 # v1.1.0
         with:
           domain: ${{ vars.CODEARTIFACT_DOMAIN }}
           domain-owner: ${{ vars.CODEARTIFACT_DOMAIN_OWNER }}
@@ -145,7 +145,7 @@ jobs:
           aws-region: ${{ vars.CODEARTIFACT_REGION }}
 
       - name: Authenticate to CodeArtifact
-        uses: StackVista/package-registry-actions/.github/actions/codeartifact-auth@9af41cd4af9374a664bb1afd836f7b903b11bfea # STAC-25549-package-registry-proxy-auth, re-pin to a release tag after that PR merges
+        uses: StackVista/package-registry-actions/.github/actions/codeartifact-auth@f0b17a56f77589c578ac916c04876432aec4aa91 # v1.1.0
         with:
           domain: ${{ vars.CODEARTIFACT_DOMAIN }}
           domain-owner: ${{ vars.CODEARTIFACT_DOMAIN_OWNER }}
