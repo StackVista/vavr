@@ -84,6 +84,8 @@ We use these goals frequently to keep the dependencies and plugins up-to-date:
         <scala.maven.version>3.4.4</scala.maven.version>
         <scala.version>2.10.6</scala.version>
         <scala.compat.version>2.10</scala.compat.version>
+        <package.registry.maven.url>https://please-set-PACKAGE-REGISTRY-MAVEN-URL-to-publish</package.registry.maven.url>
+        <package.registry.maven.snapshot.url>https://please-set-PACKAGE-REGISTRY-MAVEN-SNAPSHOT-URL-to-publish</package.registry.maven.snapshot.url>
     </properties>
     <dependencyManagement>
         <dependencies>
@@ -323,11 +325,17 @@ We use these goals frequently to keep the dependencies and plugins up-to-date:
         </pluginManagement>
     </build>
     <distributionManagement>
+        <!-- Placeholder host names the missing variable so a misconfigured publish fails loudly instead of silently. -->
         <repository>
-        <id>gitlab-packages-registry</id>
-        <name>GitLab Packages Registry</name>
-        <url>${gitlab_registry_url}</url>
+            <id>packages</id>
+            <name>StackState CodeArtifact Maven releases</name>
+            <url>${package.registry.maven.url}</url>
         </repository>
+        <snapshotRepository>
+            <id>packages-snapshot</id>
+            <name>StackState CodeArtifact Maven snapshots</name>
+            <url>${package.registry.maven.snapshot.url}</url>
+        </snapshotRepository>
     </distributionManagement>
     <profiles>
         <!-- A profile for code coverage analysis in ci environments -->

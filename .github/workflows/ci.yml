@@ -1,0 +1,189 @@
+name: CI
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+  push:
+    branches:
+      - stackstate-master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash --noprofile --norc -euo pipefail {0}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
+
+jobs:
+  build-and-test:
+    name: Build and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Java
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        with:
+          distribution: temurin
+          java-version: '8'
+          cache: maven
+
+      - name: Build and test
+        run: |
+          # vavr-benchmark is excluded: its only source for io.usethesource:capsule is a plain-HTTP
+          # repo that Maven blocks by default, and the artifact is on no HTTPS registry.
+          mvn --batch-mode -pl '!vavr-benchmark' clean test
+
+  zizmor:
+    name: zizmor
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Run zizmor
+        uses: zizmorcore/zizmor-action@b572f7b1a1c2d41efaab43d504f68d215c3cd727 # v0.5.4
+        with:
+          advanced-security: false
+
+  publish:
+    name: Publish release
+    needs:
+      - build-and-test
+      - zizmor
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/stackstate-master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Java
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        with:
+          distribution: temurin
+          java-version: '8'
+          cache: maven
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          role-to-assume: ${{ vars.CODEARTIFACT_MAVEN_RELEASE_ROLE_ARN }}
+          aws-region: ${{ vars.CODEARTIFACT_REGION }}
+
+      - name: Authenticate to CodeArtifact
+        uses: StackVista/package-registry-actions/.github/actions/codeartifact-auth@f0b17a56f77589c578ac916c04876432aec4aa91 # v1.1.0
+        with:
+          domain: ${{ vars.CODEARTIFACT_DOMAIN }}
+          domain-owner: ${{ vars.CODEARTIFACT_DOMAIN_OWNER }}
+          region: ${{ vars.CODEARTIFACT_REGION }}
+          repository: packages
+          maven-settings: 'true'
+
+      - name: Publish release to CodeArtifact
+        env:
+          PACKAGE_REGISTRY_MAVEN_URL: ${{ vars.CODEARTIFACT_MAVEN_RELEASE_URL }}
+        run: |
+          # vavr-benchmark excluded for the same reason as in build-and-test; it is a JMH harness,
+          # not a consumed artifact.
+          mvn --batch-mode -s "${MAVEN_SETTINGS_FILE}" -pl '!vavr-benchmark' \
+            -Dpackage.registry.maven.url="${PACKAGE_REGISTRY_MAVEN_URL}" deploy
+
+  publish-snapshot:
+    name: Publish snapshot
+    needs:
+      - build-and-test
+      - zizmor
+    if: >-
+      (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) ||
+      (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/stackstate-master')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Java
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        with:
+          distribution: temurin
+          java-version: '8'
+          cache: maven
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          role-to-assume: ${{ vars.CODEARTIFACT_MAVEN_SNAPSHOT_ROLE_ARN }}
+          aws-region: ${{ vars.CODEARTIFACT_REGION }}
+
+      - name: Authenticate to CodeArtifact
+        uses: StackVista/package-registry-actions/.github/actions/codeartifact-auth@f0b17a56f77589c578ac916c04876432aec4aa91 # v1.1.0
+        with:
+          domain: ${{ vars.CODEARTIFACT_DOMAIN }}
+          domain-owner: ${{ vars.CODEARTIFACT_DOMAIN_OWNER }}
+          region: ${{ vars.CODEARTIFACT_REGION }}
+          repository: packages-snapshot
+          maven-settings: 'true'
+
+      - name: Publish snapshot to CodeArtifact
+        env:
+          PACKAGE_REGISTRY_MAVEN_SNAPSHOT_URL: ${{ vars.CODEARTIFACT_MAVEN_SNAPSHOT_URL }}
+          COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          # -SNAPSHOT is what routes the deploy to snapshotRepository; a `+` separator would
+          # 404 on upload, so the sha is appended with a dash.
+          base_version="$(mvn --batch-mode -q org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate \
+            -Dexpression=project.version -DforceStdout)"
+          mvn --batch-mode org.codehaus.mojo:versions-maven-plugin:2.16.2:set \
+            -DnewVersion="${base_version%-SNAPSHOT}-${COMMIT_SHA:0:7}-SNAPSHOT" \
+            -DprocessAllModules=true -DgenerateBackupPoms=false
+          # vavr-benchmark excluded for the same reason as in build-and-test.
+          mvn --batch-mode -s "${MAVEN_SETTINGS_FILE}" -pl '!vavr-benchmark' \
+            -Dpackage.registry.maven.snapshot.url="${PACKAGE_REGISTRY_MAVEN_SNAPSHOT_URL}" deploy
+
+  ci-success:
+    name: ci-success
+    if: ${{ always() }}
+    needs:
+      - build-and-test
+      - zizmor
+      - publish
+      - publish-snapshot
+    runs-on: ubuntu-latest
+    steps:
+      - name: Evaluate workflow results
+        env:
+          NEEDS_RESULT: ${{ join(needs.*.result, ',') }}
+        run: |
+          echo "$NEEDS_RESULT"
+          if [[ "$NEEDS_RESULT" =~ failure|cancelled ]]; then
+            exit 1
+          fi
